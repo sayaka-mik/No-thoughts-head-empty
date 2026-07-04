@@ -52,12 +52,40 @@
         "three": "https://unpkg.com/three@0.150.1/build/three.module.js"
       }
     }
+
+    /* 터미널 스타일의 시작 오버레이 */
+#start-screen {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-color: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  cursor: pointer;
+}
+.start-text {
+  color: #88ccff;
+  font-family: monospace;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  animation: blink 1.5s infinite;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
   </script>
 </head>
 <body>
   <div id="joystick-origin"></div>
   <div id="joystick-thumb"></div>
-
+  <div id="start-screen">
+    <div class="start-text">> PRESS TO INITIALIZE SYSTEMS</div>
+  </div>
+  
   <script type="module">
     import * as THREE from 'three';
 
@@ -76,10 +104,25 @@
     // ==========================================
     // 오디오 시스템 초기화 (Audio Setup)
     // ==========================================
-    const bgm = new Audio('bgm.mp3');
-    bgm.loop = true;          // 반복 재생 설정
-    let isBgmPlaying = false; // 중복 실행 방지 플래그
+    // [팁] 혹시 파일명이 BGM.mp3 처럼 대소문자가 다르다면 아래 문자열과 똑같이 맞춰주세요.
+const bgm = new Audio('./bgm.mp3'); 
+bgm.loop = true;
 
+const startScreen = document.getElementById('start-screen');
+
+// 명시적인 'click' 이벤트를 통해 오디오 락을 완벽히 해제
+startScreen.addEventListener('click', () => {
+  bgm.play()
+    .then(() => {
+      // 재생 성공 시 시작 화면을 페이드아웃하거나 제거
+      startScreen.style.display = 'none';
+    })
+    .catch(err => {
+      console.error("오디오 재생 실패:", err);
+      // 실패하더라도 게임은 시작할 수 있게 화면 숨김
+      startScreen.style.display = 'none'; 
+    });
+});
     // ==========================================
     // 2. 플레이어 및 우주선 객체 생성 (Player Group)
     // ==========================================
@@ -191,36 +234,31 @@
     // ==========================================
     // 4. 원지(One-Thumb) 터치 조작 및 음원 재생
     // ==========================================
-    let touchOrigin = null;
-    let touchDelta = { x: 0, y: 0 };
-    let isTouching = false;
+let touchOrigin = null;
+let touchDelta = { x: 0, y: 0 };
+let isTouching = false;
 
-    const uiOrigin = document.getElementById('joystick-origin');
-    const uiThumb = document.getElementById('joystick-thumb');
+const uiOrigin = document.getElementById('joystick-origin');
+const uiThumb = document.getElementById('joystick-thumb');
 
-    window.addEventListener('touchstart', (e) => {
-      if (e.touches.length > 1) return;
-      const t = e.touches[0];
-      touchOrigin = { x: t.clientX, y: t.clientY };
-      touchDelta = { x: 0, y: 0 };
-      isTouching = true;
+window.addEventListener('touchstart', (e) => {
+  // 시작 화면이 켜져 있을 때는 조이스틱 오작동 방지
+  if (startScreen.style.display !== 'none') return; 
+  
+  if (e.touches.length > 1) return;
+  const t = e.touches[0];
+  touchOrigin = { x: t.clientX, y: t.clientY };
+  touchDelta = { x: 0, y: 0 };
+  isTouching = true;
 
-      // [추가] 브라우저 보안 정책 우회 및 최초 조작 시 BGM 시작
-      if (!isBgmPlaying) {
-        bgm.play().catch(err => {
-          console.warn("오디오 재생이 차단되었습니다. 상호작용이 더 필요할 수 있습니다:", err);
-        });
-        isBgmPlaying = true; // 이후 터치 시 재실행 방지
-      }
-
-      uiOrigin.style.display = 'block';
-      uiOrigin.style.left = `${touchOrigin.x}px`;
-      uiOrigin.style.top = `${touchOrigin.y}px`;
-      
-      uiThumb.style.display = 'block';
-      uiThumb.style.left = `${touchOrigin.x}px`;
-      uiThumb.style.top = `${touchOrigin.y}px`;
-    }, { passive: false });
+  uiOrigin.style.display = 'block';
+  uiOrigin.style.left = `${touchOrigin.x}px`;
+  uiOrigin.style.top = `${touchOrigin.y}px`;
+  
+  uiThumb.style.display = 'block';
+  uiThumb.style.left = `${touchOrigin.x}px`;
+  uiThumb.style.top = `${touchOrigin.y}px`;
+}, { passive: false });
 
     window.addEventListener('touchmove', (e) => {
       if (!isTouching) return;
